@@ -1,6 +1,20 @@
 <?php
 
 /**
+ * 生成 score
+ * @param int $num
+ * @return Generator
+ */
+function getScore($num = 100)
+{
+    for ($i = 1; $i <= $num; $i++) {
+        usleep(50);
+        $score = intval(microtime(true) * 10000);
+        yield 'frank' . $i => $score;
+    }
+}
+
+/**
  * 阻塞方式获取锁
  * @param $redis
  * @param $key
@@ -48,3 +62,4 @@ function uuid_create($prefix = "")
     $uuid .= substr($str, 20, 12);
     return $prefix . $uuid;
 }
+

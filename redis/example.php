@@ -1,14 +1,17 @@
 <?php
+ini_set("memory_limit", '1024M');
 require_once "./func.php";
 require_once "./Lock.php";
 define('NL', PHP_SAPI == 'cli' ? PHP_EOL : "<br>");
 
-testLock();
+//testLock();
 //testLua();
+testZset();
 
 function testLock()
 {
-    if (false === ($redis = getRedis())) {
+    $redis = getRedis();
+    if (false === $redis) {
         echo '连接失败!' . NL;
         return;
     }
@@ -62,4 +65,44 @@ function testLua()
     }
 
     $redis->evalSha($sha1Hash, [$key], 1);
+}
+
+function testZset()
+{
+    $redis = getRedis();
+    if (false === $redis) {
+        echo '连接失败!' . NL;
+        return;
+    }
+
+    $key = "user:notice";
+    $num = 999999;
+
+    $zSize = $redis->zCard($key);
+    if ($zSize === 0 || $zSize < $num) {
+        $scoreGen = getScore($num);
+        // 生成器、节约内存
+        foreach ($scoreGen as $user => $score) {
+            $redis->zAdd($key, $score, $user);
+        }
+    }
+
+    // zRangeByScore
+    $start = intval(microtime(true) * 100000);
+    $noticeArr = $redis->zRangeByScore($key, '-inf', '+inf', [
+        'withscores' => 1,
+        'limit' => [0, $num],
+    ]);
+    $end = intval(microtime(true) * 100000);
+    echo ($end - $start) . PHP_EOL;
+
+    // zScan
+    $start = intval(microtime(true) * 100000);
+    $iterator = null;
+    $redis->setOption(Redis::OPT_SCAN, Redis::SCAN_RETRY);
+    while ($notice = $redis->zScan($key, $iterator, '*frank*', '3000')) {
+
+    }
+    $end = intval(microtime(true) * 100000);
+    echo ($end - $start) . PHP_EOL;
 }
